@@ -1,0 +1,62 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <Frame name="BRDEscortFarm_Frame" parent="UIParent" toplevel="true" enableMouse="true" movable="true">
+        <Scripts>
+            <OnLoad>
+                self:Show()
+                self:EnableMouse(true)
+                self:RegisterForDrag("LeftButton")
+                self:RegisterEvent("UNIT_TARGET")
+            </OnLoad>
+            <OnDragStart>self:StartMoving()</OnDragStart>
+            <OnDragStop>self:StopMovingOrSizing()</OnDragStop>
+            <OnShow>BRDEscortFarm:OnShow()</OnShow>
+            <OnHide>BRDEscortFarm:OnHide()</OnHide>
+            <OnEvent>BRDEscortFarm:OnEvent(event, ...)</OnEvent>
+        </Scripts>
+        <Size><AbsDimension x="150" y="200"/></Size>
+        <Anchors>
+            <Anchor point="CENTER"/>
+        </Anchors>
+        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
+            <BackgroundInsets>
+                <AbsInset left="-5" right="-5" top="-5" bottom="-5"/>
+            </BackgroundInsets>
+            <TileSize>
+                <AbsValue val="32"/>
+            </TileSize>
+            <EdgeSize>
+                <AbsValue val="32"/>
+            </EdgeSize>
+        </Backdrop>
+        <Layers>
+            <Layer level="OVERLAY">
+                <FontString name="$parent_title" parentKey="title" inherits="GameFontNormal" text="BRD Escort Farm">
+                    <Size><AbsDimension x="150" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_playerName" inherits="GameFontNormal" text="name" justifyH="LEFT">
+                    <Size><AbsDimension x="120" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parent_title" relativePoint="BOTTOMLEFT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_playerPower" inherits="GameFontNormal" text="100" justifyH="RIGHT">
+                    <Size><AbsDimension x="30" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parent_title" relativePoint="BOTTOMRIGHT" />
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button name="$parent_Button" inherits="UIPanelButtonTemplate" text="Click me!">
+                <Size x="80" y="20"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="$parent_playerName" relativePoint="BOTTOMLEFT"/>
+                </Anchors>
+            </Button>
+        </Frames>
+    </Frame>
+</Ui>
