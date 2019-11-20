@@ -1,0 +1,9 @@
+## Interface: 11302
+
+## Title: BRD Escort Farm
+## Author: apottere
+## Version: @project-version@
+## X-Date: @project-date-iso@
+
+Frame.xml
+BRDEscortFarm.lua
