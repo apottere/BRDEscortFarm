@@ -2,6 +2,8 @@ local questId = 3982
 local frame = nil
 local ticker = nil
 local counter = 1
+local enabled = false
+local currentRound = nil
 
 local function ui(subframe)
     return frame[subframe]
@@ -102,20 +104,26 @@ end
 -- ui
 -------------------
 local function onShow()
+    enabled = true
     ticker = C_Timer.NewTicker(0.5, runTick)
     runTick()
 end
 
 local function onHide()
+    enabled = false
     if timer ~= nil then
         ticker:Cancel()
         ticker = nil
     end
 end
 
-local function onEvent(self, event, payload)
+local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
+    if not enabled then
+        return
+    end
+
     if event == "QUEST_ACCEPTED" then
-        local _, _, _, _, _, _, _, id = GetQuestLogTitle(payload)
+        local _, _, _, _, _, _, _, id = GetQuestLogTitle(arg1)
         if id == questId then
             AbandonQuest(3982)
             local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
@@ -125,12 +133,31 @@ local function onEvent(self, event, payload)
             end
 
             SendChatMessage(msg, "YELL")
+            currentRound = counter
             counter = counter + 1
 
             C_Timer.After(7.5, function()
-                SendChatMessage("Start casing Flame Strike now!", "YELL")
+                SendChatMessage("[BEF] Start casing Flame Strike now!", "YELL")
             end)
         end
+    end
+
+    if event == "UNIT_SPELLCAST_SUCCEEDED" and currentRound ~= nil then
+        local spell = arg3
+        if spell == 122 or spell == 865 or spell == 6131 or spell == 10230 then
+            SendChatMessage("[BEF] " .. UnitName(arg1) .. " casted Frost Nova!", "YELL")
+        end
+    end
+
+    if event == "PLAYER_LEAVE_COMBAT" and currentRound ~= nil then
+        local currentRoundBackup = currentRound
+        currentRound = nil
+
+        local msg = "[BEF] Round " .. currentRoundBackup .. " Cleared!"
+        if currentRoundBackup == 10 then
+            msg = msg .. "  Loot now!"
+        end
+        SendChatMessage(msg, "YELL")
     end
 end
 
@@ -149,6 +176,8 @@ do
     -- events
     frame:SetScript("OnEvent", onEvent)
     frame:RegisterEvent("QUEST_ACCEPTED")
+    frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    frame:RegisterEvent("PLAYER_LEAVE_COMBAT")
 
     -- Create UI
     local width = 150
