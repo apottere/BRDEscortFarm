@@ -361,7 +361,7 @@ do
     end)
 
     frame:Hide()
-    frame:Show()
+    -- frame:Show()
 end
 
 -------------------
@@ -371,9 +371,14 @@ SLASH_BEF1, SLASH_BEF2 = "/bef", "/brdescortfarm"
 SlashCmdList.BEF = function(msg, editbox)
     if msg == "show" then
         frame:Show()
+        return
     end
 
     if msg == "hide" then
         frame:Hide()
+        return
     end
+
+    print("/bef show")
+    print("/bef hide")
 end
