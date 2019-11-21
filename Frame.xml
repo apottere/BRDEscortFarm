@@ -1,46 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
     <Frame name="BRDEscortFarm_Frame" parent="UIParent" toplevel="true" enableMouse="true" movable="true">
-        <Scripts>
-            <OnLoad>
-                self:Show()
-                self:EnableMouse(true)
-                self:RegisterForDrag("LeftButton")
-            </OnLoad>
-            <OnDragStart>self:StartMoving()</OnDragStart>
-            <OnDragStop>self:StopMovingOrSizing()</OnDragStop>
-            <OnShow>BRDEscortFarm:OnShow()</OnShow>
-            <OnHide>BRDEscortFarm:OnHide()</OnHide>
-        </Scripts>
-        <Size><AbsDimension x="150" y="200"/></Size>
-        <Anchors>
-            <Anchor point="CENTER"/>
-        </Anchors>
-        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" tile="true">
-            <BackgroundInsets>
-                <AbsInset left="-5" right="-5" top="-5" bottom="-5"/>
-            </BackgroundInsets>
-            <TileSize>
-                <AbsValue val="32"/>
-            </TileSize>
-            <EdgeSize>
-                <AbsValue val="32"/>
-            </EdgeSize>
-        </Backdrop>
         <Layers>
             <Layer level="OVERLAY">
-                <FontString name="$parent_title" parentKey="title" inherits="GameFontNormal" text="BRD Escort Farm">
-                    <Size><AbsDimension x="150" y="20"/></Size>
-                    <Anchors>
-                        <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" />
-                    </Anchors>
-                </FontString>
-                <FontString name="$parent_gorshakName" inherits="GameFontNormal" text="Gor'Shak" justifyH="LEFT">
-                    <Color r="0.3" g="1" b="0.4" />
-                    <Size><AbsDimension x="120" y="20"/></Size>
-                    <Anchors>
-                        <Anchor point="TOPLEFT" relativeTo="$parent_title" relativePoint="BOTTOMLEFT" y="-5" />
-                    </Anchors>
-                </FontString>
                 <FontString name="$parent_gorshakHealth" inherits="GameFontNormal" text="???" justifyH="RIGHT">
                     <Color r="0.4" g="0.8" b="0.5" />
                     <Size><AbsDimension x="30" y="20"/></Size>

@@ -5,5 +5,4 @@
 ## Version: @project-version@
 ## X-Date: @project-date-iso@
 
-BRDEscortFarm.lua
-Frame.xml
+main.lua
