@@ -4,6 +4,9 @@ local ticker = nil
 local counter = 1
 local enabled = false
 local currentRound = nil
+local ready = false
+local powerThreshold = 45
+local totalRounds = 10
 
 local function ui(subframe)
     return frame[subframe]
@@ -62,15 +65,18 @@ local function updateUnitLine(id)
         if power ~= nil then
             powerFrame:SetText(tostring(power))
 
-            if power >= 50 then
+            if power >= powerThreshold then
                 powerFrame:SetTextColor(0.2, 0.2, 1)
             else
                 powerFrame:SetTextColor(1, 0, 0)
+                return false
             end
         else
             powerFrame:SetText("???")
         end
     end
+
+    return true
 end
 
 local function targetIsGorshak()
@@ -83,21 +89,37 @@ local function targetIsGorshak()
     return id == "9020"
 end
 
+local function getGorshakHealth()
+    if targetIsGorshak() then
+        return percentage(UnitHealth("target"), UnitHealthMax("target"))
+    end
+
+    return nil
+end
+
 local function runTick()
-    local gorshakHealth = ui("gorshakHealth")
-    if gorshakHealth then
-        if targetIsGorshak() then
-            gorshakHealth:SetText(percentage(UnitHealth("target"), UnitHealthMax("target")))
+    local maybeReady = true
+    local gorshakHealthFrame = ui("gorshakHealth")
+    if gorshakHealthFrame then
+        local gorshakHealth = getGorshakHealth()
+        if gorshakHealth ~= nil then
+            gorshakHealthFrame:SetText(gorshakHealth)
+
+            if gorshakHealth ~= 100 then
+                maybeReady = false
+            end
         else
-            gorshakHealth:SetText("???")
+            gorshakHealthFrame:SetText("???")
         end
     end
 
-    updateUnitLine("player")
-    updateUnitLine("party1")
-    updateUnitLine("party2")
-    updateUnitLine("party3")
-    updateUnitLine("party4")
+    maybeReady = maybeReady and updateUnitLine("player")
+    maybeReady = maybeReady and updateUnitLine("party1")
+    maybeReady = maybeReady and updateUnitLine("party2")
+    maybeReady = maybeReady and updateUnitLine("party3")
+    maybeReady = maybeReady and updateUnitLine("party4")
+
+    ready = maybeReady
 end
 
 -------------------
@@ -122,30 +144,40 @@ local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
         return
     end
 
+    if event == "QUEST_DETAIL" then
+        if ready and GetQuestID() == questId and getGorshakHealth() == 100 then
+            print("Accepting")
+            AcceptQuest()
+        else
+            print("Not accepting")
+        end
+    end
+
     if event == "QUEST_ACCEPTED" then
         local _, _, _, _, _, _, _, id = GetQuestLogTitle(arg1)
         if id == questId then
-            AbandonQuest(3982)
+            AbandonQuest(questId)
+            currentRound = counter
             local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
-            if counter == 10 then
+            if counter == totalRounds then
                 msg = msg .. "  Loot after this!"
                 counter = 0
             end
 
             SendChatMessage(msg, "YELL")
-            currentRound = counter
             counter = counter + 1
 
-            C_Timer.After(7.5, function()
+            C_Timer.After(6, function()
                 SendChatMessage("[BEF] Start casing Flame Strike now!", "YELL")
             end)
         end
     end
 
     if event == "UNIT_SPELLCAST_SUCCEEDED" and currentRound ~= nil then
+        local unitId = arg1
         local spell = arg3
         if spell == 122 or spell == 865 or spell == 6131 or spell == 10230 then
-            SendChatMessage("[BEF] " .. UnitName(arg1) .. " casted Frost Nova!", "YELL")
+            SendChatMessage("[BEF] " .. UnitName(unitId) .. " casted Frost Nova!", "YELL")
         end
     end
 
@@ -175,6 +207,7 @@ do
 
     -- events
     frame:SetScript("OnEvent", onEvent)
+    frame:RegisterEvent("QUEST_DETAIL")
     frame:RegisterEvent("QUEST_ACCEPTED")
     frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
     frame:RegisterEvent("PLAYER_LEAVE_COMBAT")
@@ -309,7 +342,7 @@ do
 	frame.incrementCounter:SetWidth(width)
     frame.incrementCounter:SetHeight(21)
     frame.incrementCounter:SetScript("OnClick", function() 
-        if counter < 10 then
+        if counter < totalRounds then
             counter = counter + 1
         end
         print(tostring(counter))
