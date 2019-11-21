@@ -275,7 +275,7 @@ do
 
     -- buttons
     frame.incrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.incrementCounter:SetPoint("TOPLEFT", frame.party4Name, "BOTTOMLEFT", 0, -5)
+    frame.incrementCounter:SetPoint("TOPLEFT", frame.party4Name, "BOTTOMLEFT", 0, -10)
     frame.incrementCounter:SetText("Increment Counter")
 	frame.incrementCounter:SetWidth(width)
     frame.incrementCounter:SetHeight(21)
@@ -287,7 +287,7 @@ do
     end)
 
     frame.decrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.decrementCounter:SetPoint("TOPLEFT", frame.incrementCounter, "BOTTOMLEFT", 0, -5)
+    frame.decrementCounter:SetPoint("TOPLEFT", frame.incrementCounter, "BOTTOMLEFT", 0, 0)
     frame.decrementCounter:SetText("Decrement Counter")
 	frame.decrementCounter:SetWidth(width)
     frame.decrementCounter:SetHeight(21)
@@ -297,8 +297,6 @@ do
         end
         print(tostring(counter))
     end)
-
-
 
     frame:Hide()
     frame:Show()
