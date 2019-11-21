@@ -5,13 +5,11 @@
                 self:Show()
                 self:EnableMouse(true)
                 self:RegisterForDrag("LeftButton")
-                self:RegisterEvent("UNIT_TARGET")
             </OnLoad>
             <OnDragStart>self:StartMoving()</OnDragStart>
             <OnDragStop>self:StopMovingOrSizing()</OnDragStop>
             <OnShow>BRDEscortFarm:OnShow()</OnShow>
             <OnHide>BRDEscortFarm:OnHide()</OnHide>
-            <OnEvent>BRDEscortFarm:OnEvent(event, ...)</OnEvent>
         </Scripts>
         <Size><AbsDimension x="150" y="200"/></Size>
         <Anchors>
@@ -36,16 +34,87 @@
                         <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" />
                     </Anchors>
                 </FontString>
-                <FontString name="$parent_playerName" inherits="GameFontNormal" text="name" justifyH="LEFT">
+                <FontString name="$parent_gorshakName" inherits="GameFontNormal" text="Gor'Shak" justifyH="LEFT">
+                    <Color r="0.3" g="1" b="0.4" />
                     <Size><AbsDimension x="120" y="20"/></Size>
                     <Anchors>
-                        <Anchor point="TOPLEFT" relativeTo="$parent_title" relativePoint="BOTTOMLEFT" />
+                        <Anchor point="TOPLEFT" relativeTo="$parent_title" relativePoint="BOTTOMLEFT" y="-5" />
                     </Anchors>
                 </FontString>
-                <FontString name="$parent_playerPower" inherits="GameFontNormal" text="100" justifyH="RIGHT">
+                <FontString name="$parent_gorshakHealth" inherits="GameFontNormal" text="???" justifyH="RIGHT">
+                    <Color r="0.4" g="0.8" b="0.5" />
                     <Size><AbsDimension x="30" y="20"/></Size>
                     <Anchors>
-                        <Anchor point="TOPRIGHT" relativeTo="$parent_title" relativePoint="BOTTOMRIGHT" />
+                        <Anchor point="TOPRIGHT" relativeTo="$parent_title" relativePoint="BOTTOMRIGHT" y="-5" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_playerName" inherits="GameFontNormal" text="???" justifyH="LEFT">
+                    <Size><AbsDimension x="120" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parent_gorshakName" relativePoint="BOTTOMLEFT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_playerPower" inherits="GameFontNormal" text="???" justifyH="RIGHT">
+                    <Color r="0.2" g="0.2" b="1" />
+                    <Size><AbsDimension x="30" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parent_gorshakHealth" relativePoint="BOTTOMRIGHT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_party1Name" inherits="GameFontNormal" text="???" justifyH="LEFT">
+                    <Color r="1" g="1" b="1" />
+                    <Size><AbsDimension x="120" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parent_playerName" relativePoint="BOTTOMLEFT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_party1Power" inherits="GameFontNormal" text="???" justifyH="RIGHT">
+                    <Color r="0.2" g="0.2" b="1" />
+                    <Size><AbsDimension x="30" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parent_playerPower" relativePoint="BOTTOMRIGHT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_party2Name" inherits="GameFontNormal" text="???" justifyH="LEFT">
+                    <Color r="1" g="1" b="1" />
+                    <Size><AbsDimension x="120" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parent_party1Name" relativePoint="BOTTOMLEFT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_party2Power" inherits="GameFontNormal" text="???" justifyH="RIGHT">
+                    <Color r="0.2" g="0.2" b="1" />
+                    <Size><AbsDimension x="30" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parent_party1Power" relativePoint="BOTTOMRIGHT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_party3Name" inherits="GameFontNormal" text="???" justifyH="LEFT">
+                    <Color r="1" g="1" b="1" />
+                    <Size><AbsDimension x="120" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parent_party2Name" relativePoint="BOTTOMLEFT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_party3Power" inherits="GameFontNormal" text="???" justifyH="RIGHT">
+                    <Color r="0.2" g="0.2" b="1" />
+                    <Size><AbsDimension x="30" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parent_party2Power" relativePoint="BOTTOMRIGHT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_party4Name" inherits="GameFontNormal" text="???" justifyH="LEFT">
+                    <Color r="1" g="1" b="1" />
+                    <Size><AbsDimension x="120" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="$parent_party3Name" relativePoint="BOTTOMLEFT" />
+                    </Anchors>
+                </FontString>
+                <FontString name="$parent_party4Power" inherits="GameFontNormal" text="???" justifyH="RIGHT">
+                    <Color r="0.2" g="0.2" b="1" />
+                    <Size><AbsDimension x="30" y="20"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" relativeTo="$parent_party3Power" relativePoint="BOTTOMRIGHT" />
                     </Anchors>
                 </FontString>
             </Layer>
@@ -54,7 +123,7 @@
             <Button name="$parent_Button" inherits="UIPanelButtonTemplate" text="Click me!">
                 <Size x="80" y="20"/>
                 <Anchors>
-                    <Anchor point="TOPLEFT" relativeTo="$parent_playerName" relativePoint="BOTTOMLEFT"/>
+                    <Anchor point="TOPLEFT" relativeTo="$parent_party4Name" relativePoint="BOTTOMLEFT" y="-10" />
                 </Anchors>
             </Button>
         </Frames>
