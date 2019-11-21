@@ -1,3 +1,4 @@
+local questId = 3982
 local frame = nil
 local ticker = nil
 local counter = 1
@@ -112,6 +113,27 @@ local function onHide()
     end
 end
 
+local function onEvent(self, event, payload)
+    if event == "QUEST_ACCEPTED" then
+        local _, _, _, _, _, _, _, id = GetQuestLogTitle(payload)
+        if id == questId then
+            AbandonQuest(3982)
+            local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
+            if counter == 10 then
+                msg = msg .. "  Loot after this!"
+                counter = 0
+            end
+
+            SendChatMessage(msg, "YELL")
+            counter = counter + 1
+
+            C_Timer.After(7.5, function()
+                SendChatMessage("Start casing Flame Strike now!", "YELL")
+            end)
+        end
+    end
+end
+
 frame = CreateFrame("Frame", "test", UIParent)
 do
     frame:SetPoint("CENTER")
@@ -123,6 +145,10 @@ do
     frame:SetScript("OnHide", onHide)
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+
+    -- events
+    frame:SetScript("OnEvent", onEvent)
+    frame:RegisterEvent("QUEST_ACCEPTED")
 
     -- Create UI
     local width = 150
@@ -247,16 +273,32 @@ do
     frame.party4Power:SetHeight(fontHeight)
     frame.party4Power:SetJustifyH("RIGHT")
 
-    frame.button = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.button:SetPoint("TOPLEFT", frame.party4Name, "BOTTOMLEFT", 0, -10)
-    frame.button:SetText("Click me!")
-	frame.button:SetWidth(width)
-    frame.button:SetHeight(21)
-    frame.button:SetScript("OnClick", function() 
-        AbandonQuest(3982)
-        SendChatMessage("[BEF] Wave " .. tostring(counter) .. " Incoming!", "PARTY")
-        counter = counter + 1
-     end)
+    -- buttons
+    frame.incrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.incrementCounter:SetPoint("TOPLEFT", frame.party4Name, "BOTTOMLEFT", 0, -5)
+    frame.incrementCounter:SetText("Increment Counter")
+	frame.incrementCounter:SetWidth(width)
+    frame.incrementCounter:SetHeight(21)
+    frame.incrementCounter:SetScript("OnClick", function() 
+        if counter < 10 then
+            counter = counter + 1
+        end
+        print(tostring(counter))
+    end)
+
+    frame.decrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.decrementCounter:SetPoint("TOPLEFT", frame.incrementCounter, "BOTTOMLEFT", 0, -5)
+    frame.decrementCounter:SetText("Decrement Counter")
+	frame.decrementCounter:SetWidth(width)
+    frame.decrementCounter:SetHeight(21)
+    frame.decrementCounter:SetScript("OnClick", function() 
+        if counter > 1 then
+            counter = counter - 1
+        end
+        print(tostring(counter))
+    end)
+
+
 
     frame:Hide()
     frame:Show()
