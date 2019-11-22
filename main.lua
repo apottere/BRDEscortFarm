@@ -1,11 +1,11 @@
 local questId = 3982
 local frame = nil
-local ticker = nil
 local counter = 1
 local enabled = false
 local currentRound = nil
 local ready = false
-local powerThreshold = 45
+local powerThreshold = 35
+local gorshakHealthThreshold = 90
 local totalRounds = 10
 local party = {}
 local eventHandlers = {}
@@ -43,41 +43,49 @@ local function getClassColor(class)
     return 0.5, 0.5, 0.5 
 end
 
-local function updateUnitLine(id)
-    local name = UnitName(id)
-    local power = unitPowerPercentage(id)
-
-    local nameFrame = ui(id, "name")
+local function updateUnitName(unitId)
+    local name = UnitName(unitId)
+    local nameFrame = ui(unitId, "name")
     if nameFrame ~= nil then
         if name ~= nil then
             nameFrame:SetText(name)
 
-            local _, _, class = UnitClass(id)
+            local _, _, class = UnitClass(unitId)
             local r, g, b = getClassColor(class)
 
             nameFrame:SetTextColor(r, g, b)
         else
-            nameFrame:SetText("???")
+            nameFrame:SetText("------")
             nameFrame:SetTextColor(1, 1, 1)
         end
     end
 
-    local powerFrame = ui(id, "power")
+end
+
+local function updateUnitPower(unitId)
+    local power = unitPowerPercentage(unitId)
+
+    local powerFrame = ui(unitId, "power")
     if powerFrame ~= nil then
         if power ~= nil then
             powerFrame:SetText(tostring(power))
 
             if power >= powerThreshold then
                 powerFrame:SetTextColor(0.2, 0.2, 1)
-                party[id].ready = true
+                party[unitId].ready = true
             else
                 powerFrame:SetTextColor(1, 0, 0)
-                party[id].ready = false
+                party[unitId].ready = false
             end
         else
-            powerFrame:SetText("???")
+            powerFrame:SetText("---")
         end
     end
+end
+
+local function updateUnitLine(unitId)
+    updateUnitName(unitId)
+    updateUnitPower(unitId)
 end
 
 local function targetIsGorshak()
@@ -91,20 +99,20 @@ local function targetIsGorshak()
 end
 
 local function getGorshakHealth()
-    if targetIsGorshak() then
-        return percentage(UnitHealth("target"), UnitHealthMax("target"))
-    end
-
-    return nil
+    return percentage(UnitHealth("target"), UnitHealthMax("target"))
 end
 
-local function runTick()
+local function updateGorshakHealth()
+    if not targetIsGorshak() then
+        return
+    end
+
     local gorshakHealthFrame = ui("gorshak", "health")
     if gorshakHealthFrame then
         local gorshakHealth = getGorshakHealth()
         if gorshakHealth ~= nil then
             gorshakHealthFrame:SetText(gorshakHealth)
-            if gorshakHealth == 100 then
+            if gorshakHealth >= gorshakHealthThreshold then
                 gorshakHealthFrame:SetTextColor(0.4, 0.8, 0.5)
             else
                 gorshakHealthFrame:SetTextColor(1, 0, 0)
@@ -116,50 +124,66 @@ local function runTick()
     end
 end
 
+local function updatePartyLines()
+    updateUnitLine("player")
+    updateUnitLine("party1")
+    updateUnitLine("party2")
+    updateUnitLine("party3")
+    updateUnitLine("party4")
+end
+
 -------------------
 -- ui
 -------------------
 local function onShow()
     enabled = true
-    ticker = C_Timer.NewTicker(0.5, runTick)
-    runTick()
+    updatePartyLines()
+    updateGorshakHealth()
 end
 
 local function onHide()
     enabled = false
-    if timer ~= nil then
-        ticker:Cancel()
-        ticker = nil
-    end
 end
 
 eventHandlers.QUEST_DETAIL = function()
     if GetQuestID() == questId then
-        if not party.player.ready or not party.party1.ready or not party.party2.ready or not party.party3.ready or not party.party4.ready or getGorshakHealth() ~= 100 then
+        if currentRound ~= nil then
             CloseQuest()
-            print("[BEF] Not ready to start yet, check mana and Gor'Shak's health!")
+            print("[BEF] It looks like a round is already started, did you double click Gor'Shak?  If a round isn't currently active and you think this is broken, reload your UI.")
+            return
+        end
+
+        if getGorshakHealth() < gorshakHealthThreshold then
+            CloseQuest()
+            print("[BEF] Not ready to start yet, check Gor'Shak's health!")
+            return
+        end
+
+        if not party.player.ready or not party.party1.ready or not party.party2.ready or not party.party3.ready or not party.party4.ready then
+            CloseQuest()
+            print("[BEF] Not ready to start yet, check party's mana!")
             return
         end
 
         AcceptQuest()
-        currentRound = counter
-        local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
-        if counter == totalRounds then
-            msg = msg .. "  Loot after this!"
-            counter = 0
-        end
-
-        SendChatMessage(msg, "YELL")
-        counter = counter + 1
     end
 end
 
 eventHandlers.QUEST_ACCEPTED = function(questIndex)
     local _, _, _, _, _, _, _, id = GetQuestLogTitle(questIndex)
     if id == questId then
+        currentRound = counter
         AbandonQuest(questId)
+        local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
+        if counter == totalRounds then
+            msg = msg .. "  Loot after this!"
+            counter = 0
+        end
+
+        counter = counter + 1
+        SendChatMessage(msg, "YELL")
         C_Timer.After(5.5, function()
-            SendChatMessage("[BEF] Start casing Flamestrike now!", "YELL")
+            SendChatMessage("[BEF] Start casting Flamestrike now!", "YELL")
         end)
     end
 end
@@ -197,6 +221,20 @@ eventHandlers.UNIT_TARGET = function(unitId)
     if unitId ~= "player" then
         return
     end
+
+    updateGorshakHealth()
+end
+
+eventHandlers.UNIT_HEALTH = function(unitId)
+    if unitId ~= target then
+        return
+    end
+
+    updateGorshakHealth()
+end
+
+eventHandlers.GROUP_ROSTER_UPDATE = function()
+    updatePartyLines()
 end
 
 local function onEvent(self, event, ...)
@@ -225,7 +263,7 @@ do
     -- Create UI
     local width = 150
     frame:SetWidth(width)
-    frame:SetHeight(200)
+    frame:SetHeight(210)
     frame:SetBackdrop({ 
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", 
         tile = true,
@@ -381,6 +419,19 @@ do
         print(tostring(counter))
     end)
 
+    frame.surpriseLoot = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.surpriseLoot:SetPoint("TOPLEFT", frame.decrementCounter, "BOTTOMLEFT", 0, 0)
+    frame.surpriseLoot:SetText("End Round Early")
+	frame.surpriseLoot:SetWidth(width)
+    frame.surpriseLoot:SetHeight(21)
+    frame.surpriseLoot:SetScript("OnClick", function() 
+        if counter == 1 then
+            return
+        end
+        counter = 1
+        SendChatMessage("Surprise LOOT SESSION!", "YELL")
+    end)
+
     -- events
     frame:SetScript("OnEvent", onEvent)
     frame:RegisterEvent("QUEST_DETAIL")
@@ -389,6 +440,8 @@ do
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame:RegisterEvent("UNIT_POWER_UPDATE")
     frame:RegisterEvent("UNIT_TARGET")
+    frame:RegisterEvent("UNIT_HEALTH")
+    frame:RegisterEvent("GROUP_ROSTER_UPDATE")
 
     frame:Hide()
     -- frame:Show()
