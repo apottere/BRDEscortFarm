@@ -323,7 +323,7 @@ do
     -- Create UI
     local width = 150
     frame:SetWidth(width)
-    frame:SetHeight(290)
+    frame:SetHeight(295)
     frame:SetBackdrop({ 
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", 
         tile = true,
@@ -489,14 +489,14 @@ do
     -- minimum mana slider
     frame.manaLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.manaLabel:SetText("Minimum Mana")
-    frame.manaLabel:SetPoint("TOPLEFT", frame.waveSlider, "BOTTOMLEFT", -5, -10)
+    frame.manaLabel:SetPoint("TOPLEFT", frame.waveSlider, "BOTTOMLEFT", -5, -15)
     frame.manaLabel:SetWidth(width - powerWidth)
     frame.manaLabel:SetHeight(fontHeight)
     frame.manaLabel:SetJustifyH("LEFT")
 
     frame.manaValue = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.manaValue:SetText(tostring(powerThreshold))
-    frame.manaValue:SetPoint("TOPRIGHT", frame.waveSlider, "BOTTOMRIGHT", -5, -10)
+    frame.manaValue:SetPoint("TOPRIGHT", frame.waveSlider, "BOTTOMRIGHT", 5, -15)
     frame.manaValue:SetTextColor(1, 0.6, 0)
     frame.manaValue:SetWidth(powerWidth)
     frame.manaValue:SetHeight(fontHeight)
@@ -523,13 +523,13 @@ do
     -- broadcast nova button
     frame.broadcastNovaLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.broadcastNovaLabel:SetText("Broadcast Nova")
-    frame.broadcastNovaLabel:SetPoint("TOPLEFT", frame.manaSlider, "BOTTOMLEFT", -5, -12)
+    frame.broadcastNovaLabel:SetPoint("TOPLEFT", frame.manaSlider, "BOTTOMLEFT", -5, -15)
     frame.broadcastNovaLabel:SetWidth(width - powerWidth)
     frame.broadcastNovaLabel:SetHeight(fontHeight)
     frame.broadcastNovaLabel:SetJustifyH("LEFT")
 
     frame.broadcastNovaButton = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    frame.broadcastNovaButton:SetPoint("TOPRIGHT", frame.manaSlider, "BOTTOMRIGHT", 5, -12)
+    frame.broadcastNovaButton:SetPoint("TOPRIGHT", frame.manaSlider, "BOTTOMRIGHT", 5, -15)
     frame.broadcastNovaButton:SetChecked(broadcastNova)
     frame.broadcastNovaButton:SetButtonState("NORMAL")
     frame.broadcastNovaButton:SetWidth(22)
