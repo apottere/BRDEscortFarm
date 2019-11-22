@@ -1,3 +1,5 @@
+local _, namespace = ...
+
 local questId = 3982
 local frame = nil
 local counter = 1
@@ -9,6 +11,23 @@ local gorshakHealthThreshold = 90
 local totalRounds = 10
 local party = {}
 local eventHandlers = {}
+local frostNovaNames = {}
+
+local function addFrostNovaRank(rank, spellId)
+    local spellName = GetSpellInfo(spellId)
+    if spellName then
+        frostNovaNames[rank] = spellName
+    end
+end
+
+addFrostNovaRank(1, 122)
+addFrostNovaRank(2, 865)
+addFrostNovaRank(3, 6131)
+addFrostNovaRank(4, 10230)
+
+local function isDuringRound()
+    return currentRound ~= nil
+end
 
 local function ui(unitId, frame)
     return party[unitId][frame]
@@ -137,21 +156,11 @@ local function updatePartyLines()
 end
 
 -------------------
--- ui
+-- events
 -------------------
-local function onShow()
-    enabled = true
-    updatePartyLines()
-    updateGorshakHealth()
-end
-
-local function onHide()
-    enabled = false
-end
-
 eventHandlers.QUEST_DETAIL = function()
     if GetQuestID() == questId then
-        if currentRound ~= nil then
+        if isDuringRound() then
             CloseQuest()
             print("[BEF] It looks like a round is already started, did you double click Gor'Shak?  If a round isn't currently active and you think this is broken, reload your UI.")
             return
@@ -193,7 +202,7 @@ eventHandlers.QUEST_ACCEPTED = function(questIndex)
 end
 
 eventHandlers.PLAYER_REGEN_ENABLED = function()
-    if currentRound == nil then
+    if not isDuringRound() then
         return
     end
     local currentRoundBackup = currentRound
@@ -206,19 +215,27 @@ eventHandlers.PLAYER_REGEN_ENABLED = function()
     SendChatMessage(msg, "YELL")
 end
 
-eventHandlers.UNIT_POWER_UPDATE = function(unitId)
+eventHandlers.UNIT_POWER_FREQUENT = function(unitId)
     if party[unitId] then
         updateUnitLine(unitId)
     end
 end
 
-eventHandlers.COMBAT_LOG_EVENT_UNFILTERED = function()
-end
+eventHandlers.COMBAT_LOG_EVENT_UNFILTERED = function(unitId, _, spellId)
+    if not isDuringRound() then
+        return
+    end
 
-eventHandlers.UNIT_SPELLCAST_SUCCEEDED = function(unitId, _, spellId)
-    -- if spell == 122 or spell == 865 or spell == 6131 or spell == 10230 then
-    --     SendChatMessage("[BEF] " .. UnitName(unitId) .. " casted Frost Nova!", "YELL")
-    -- end
+    local _, eventType, _, source, _, _, _, _, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
+    if eventType ~= "SPELL_CAST_SUCCESS" then
+        return
+    end
+
+    local _, _, _, _, _, name = GetPlayerInfoByGUID(source)
+
+    if spellName == frostNovaNames[1] or spellName == frostNovaNames[2] or spellName == frostNovaNames[3] or spellName == frostNovaNames[4]  then
+        SendChatMessage("[BEF] " .. name .. " casted Frost Nova!", "YELL")
+    end
 end
 
 eventHandlers.UNIT_TARGET = function(unitId)
@@ -229,7 +246,7 @@ eventHandlers.UNIT_TARGET = function(unitId)
     updateGorshakHealth()
 end
 
-eventHandlers.UNIT_HEALTH = function(unitId)
+eventHandlers.UNIT_HEALTH_FREQUENT = function(unitId)
     if unitId ~= target then
         return
     end
@@ -239,6 +256,23 @@ end
 
 eventHandlers.GROUP_ROSTER_UPDATE = function()
     updatePartyLines()
+end
+
+eventHandlers.GROUP_JOINED = function()
+    updatePartyLines()
+end
+
+-------------------
+-- ui
+-------------------
+local function onShow()
+    enabled = true
+    updatePartyLines()
+    updateGorshakHealth()
+end
+
+local function onHide()
+    enabled = false
 end
 
 local function onEvent(self, event, ...)
@@ -440,12 +474,13 @@ do
     frame:SetScript("OnEvent", onEvent)
     frame:RegisterEvent("QUEST_DETAIL")
     frame:RegisterEvent("QUEST_ACCEPTED")
-    frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    frame:RegisterEvent("UNIT_POWER_UPDATE")
+    frame:RegisterEvent("UNIT_POWER_FREQUENT")
     frame:RegisterEvent("UNIT_TARGET")
-    frame:RegisterEvent("UNIT_HEALTH")
+    frame:RegisterEvent("UNIT_HEALTH_FREQUENT")
     frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    frame:RegisterEvent("GROUP_JOINED")
+    frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
     frame:Hide()
     -- frame:Show()
