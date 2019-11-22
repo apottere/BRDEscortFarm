@@ -159,7 +159,7 @@ eventHandlers.QUEST_ACCEPTED = function(questIndex)
     if id == questId then
         AbandonQuest(questId)
         C_Timer.After(5.5, function()
-            SendChatMessage("[BEF] Start casing Flame Strike now!", "YELL")
+            SendChatMessage("[BEF] Start casing Flamestrike now!", "YELL")
         end)
     end
 end
