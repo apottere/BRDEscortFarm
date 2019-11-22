@@ -103,8 +103,14 @@ local function runTick()
         local gorshakHealth = getGorshakHealth()
         if gorshakHealth ~= nil then
             gorshakHealthFrame:SetText(gorshakHealth)
+            if gorshakHealth == 100 then
+                gorshakHealthFrame:SetTextColor(0.4, 0.8, 0.5)
+            else
+                gorshakHealthFrame:SetTextColor(1, 0, 0)
+            end
         else
             gorshakHealthFrame:SetText("???")
+            gorshakHealthFrame:SetTextColor(1, 1, 1)
         end
     end
 end
@@ -134,6 +140,7 @@ local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
     if event == "QUEST_DETAIL" then
         if not party.player.ready or not party.party1.ready or not party.party2.ready or not party.party3.ready or not party.party4.ready then
             CloseQuest()
+            print("[BEF] Not ready to start yet, check mana and Gor'Shak's health!")
             return
         end
 
