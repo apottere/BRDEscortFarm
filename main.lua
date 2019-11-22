@@ -44,42 +44,44 @@ local function getClassColor(class)
 end
 
 local function updateUnitName(unitId)
-    local name = UnitName(unitId)
     local nameFrame = ui(unitId, "name")
-    if nameFrame ~= nil then
-        if name ~= nil then
-            nameFrame:SetText(name)
-
-            local _, _, class = UnitClass(unitId)
-            local r, g, b = getClassColor(class)
-
-            nameFrame:SetTextColor(r, g, b)
-        else
-            nameFrame:SetText("------")
-            nameFrame:SetTextColor(1, 1, 1)
-        end
+    if nameFrame == nil then
+        return
     end
 
+    local name = UnitName(unitId)
+    if name ~= nil then
+        nameFrame:SetText(name)
+
+        local _, _, class = UnitClass(unitId)
+        local r, g, b = getClassColor(class)
+
+        nameFrame:SetTextColor(r, g, b)
+    else
+        nameFrame:SetText("------")
+        nameFrame:SetTextColor(1, 1, 1)
+    end
 end
 
 local function updateUnitPower(unitId)
-    local power = unitPowerPercentage(unitId)
-
     local powerFrame = ui(unitId, "power")
-    if powerFrame ~= nil then
-        if power ~= nil then
-            powerFrame:SetText(tostring(power))
+    if powerFrame == nil then
+        return
+    end
 
-            if power >= powerThreshold then
-                powerFrame:SetTextColor(0.2, 0.2, 1)
-                party[unitId].ready = true
-            else
-                powerFrame:SetTextColor(1, 0, 0)
-                party[unitId].ready = false
-            end
+    local power = unitPowerPercentage(unitId)
+    if power ~= nil then
+        powerFrame:SetText(tostring(power))
+
+        if power >= powerThreshold then
+            powerFrame:SetTextColor(0.2, 0.2, 1)
+            party[unitId].ready = true
         else
-            powerFrame:SetText("---")
+            powerFrame:SetTextColor(1, 0, 0)
+            party[unitId].ready = false
         end
+    else
+        powerFrame:SetText("---")
     end
 end
 
@@ -103,12 +105,12 @@ local function getGorshakHealth()
 end
 
 local function updateGorshakHealth()
-    if not targetIsGorshak() then
+    local gorshakHealthFrame = ui("gorshak", "health")
+    if not gorshakHealthFrame then
         return
     end
 
-    local gorshakHealthFrame = ui("gorshak", "health")
-    if gorshakHealthFrame then
+    if targetIsGorshak() then
         local gorshakHealth = getGorshakHealth()
         if gorshakHealth ~= nil then
             gorshakHealthFrame:SetText(gorshakHealth)
@@ -117,11 +119,13 @@ local function updateGorshakHealth()
             else
                 gorshakHealthFrame:SetTextColor(1, 0, 0)
             end
-        else
-            gorshakHealthFrame:SetText("???")
-            gorshakHealthFrame:SetTextColor(1, 1, 1)
+
+            return
         end
     end
+
+    gorshakHealthFrame:SetText("???")
+    gorshakHealthFrame:SetTextColor(1, 1, 1)
 end
 
 local function updatePartyLines()
