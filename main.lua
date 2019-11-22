@@ -146,13 +146,6 @@ local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
 
         if GetQuestID() == questId and getGorshakHealth() == 100 then
             AcceptQuest()
-        end
-    end
-
-    if event == "QUEST_ACCEPTED" then
-        local _, _, _, _, _, _, _, id = GetQuestLogTitle(arg1)
-        if id == questId then
-            AbandonQuest(questId)
             currentRound = counter
             local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
             if counter == totalRounds then
@@ -162,7 +155,13 @@ local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
 
             SendChatMessage(msg, "YELL")
             counter = counter + 1
+        end
+    end
 
+    if event == "QUEST_ACCEPTED" then
+        local _, _, _, _, _, _, _, id = GetQuestLogTitle(arg1)
+        if id == questId then
+            AbandonQuest(questId)
             C_Timer.After(5.5, function()
                 SendChatMessage("[BEF] Start casing Flame Strike now!", "YELL")
             end)
