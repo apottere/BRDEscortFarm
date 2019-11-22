@@ -244,9 +244,9 @@ eventHandlers.COMBAT_LOG_EVENT_UNFILTERED = function(unitId, _, spellId)
         return
     end
 
-    -- if not isDuringWave then
-    --     return
-    -- end
+    if not isDuringWave then
+        return
+    end
 
     local _, eventType, _, source, _, _, _, _, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
     if eventType ~= "SPELL_CAST_SUCCESS" then
@@ -565,7 +565,7 @@ do
     frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
     frame:Hide()
-    frame:Show()
+    -- frame:Show()
 end
 
 -------------------
