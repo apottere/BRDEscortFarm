@@ -1,17 +1,18 @@
 local _, namespace = ...
 
 local questId = 3982
+local npcId = 9020
 local frame = nil
-local counter = 1
+local wave = 1
 local enabled = false
-local currentRound = nil
 local ready = false
 local powerThreshold = 35
 local gorshakHealthThreshold = 90
-local totalRounds = 10
+local totalWaves = 10
 local party = {}
 local eventHandlers = {}
 local frostNovaNames = {}
+local isDuringWave = false
 
 local function addFrostNovaRank(rank, spellId)
     local spellName = GetSpellInfo(spellId)
@@ -25,8 +26,9 @@ addFrostNovaRank(2, 865)
 addFrostNovaRank(3, 6131)
 addFrostNovaRank(4, 10230)
 
-local function isDuringRound()
-    return currentRound ~= nil
+local function setWave(newWave)
+    wave = newWave
+    frame.waveValue:SetText(tostring(newWave))
 end
 
 local function ui(unitId, frame)
@@ -116,7 +118,7 @@ local function targetIsGorshak()
     end
 
     local id = guid:sub(-15, -12)
-    return id == "9020"
+    return id == tostring(npcId)
 end
 
 local function getGorshakHealth()
@@ -160,9 +162,9 @@ end
 -------------------
 eventHandlers.QUEST_DETAIL = function()
     if GetQuestID() == questId then
-        if isDuringRound() then
+        if isDuringWave then
             CloseQuest()
-            print("[BEF] It looks like a round is already started, did you double click Gor'Shak?  If a round isn't currently active and you think this is broken, reload your UI.")
+            print("[BEF] It looks like a wave is already started, did you double click Gor'Shak?  If a wave isn't currently active and you think this is broken, reload your UI.")
             return
         end
 
@@ -185,15 +187,14 @@ end
 eventHandlers.QUEST_ACCEPTED = function(questIndex)
     local _, _, _, _, _, _, _, id = GetQuestLogTitle(questIndex)
     if id == questId then
-        currentRound = counter
         AbandonQuest(questId)
-        local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
-        if counter == totalRounds then
+        isDuringWave = true
+
+        local msg = "[BEF] Wave " .. tostring(wave) .. " Incoming!"
+        if wave == totalWaves then
             msg = msg .. "  Loot after this!"
-            counter = 0
         end
 
-        counter = counter + 1
         SendChatMessage(msg, "YELL")
         C_Timer.After(5.5, function()
             SendChatMessage("[BEF] Start casting Flamestrike now!", "YELL")
@@ -202,15 +203,17 @@ eventHandlers.QUEST_ACCEPTED = function(questIndex)
 end
 
 eventHandlers.PLAYER_REGEN_ENABLED = function()
-    if not isDuringRound() then
+    if not isDuringWave then
         return
     end
-    local currentRoundBackup = currentRound
-    currentRound = nil
+    isDuringWave = false
 
-    local msg = "[BEF] Wave " .. currentRoundBackup .. " Cleared!"
-    if currentRoundBackup == 10 then
+    local msg = "[BEF] Wave " .. wave .. " Cleared!"
+    if wave == 10 then
         msg = msg .. "  Loot now!"
+        setWave(1)
+    else
+        setWave(wave + 1)
     end
     SendChatMessage(msg, "YELL")
 end
@@ -222,7 +225,7 @@ eventHandlers.UNIT_POWER_FREQUENT = function(unitId)
 end
 
 eventHandlers.COMBAT_LOG_EVENT_UNFILTERED = function(unitId, _, spellId)
-    if not isDuringRound() then
+    if not isDuringWave then
         return
     end
 
@@ -301,7 +304,7 @@ do
     -- Create UI
     local width = 150
     frame:SetWidth(width)
-    frame:SetHeight(210)
+    frame:SetHeight(300)
     frame:SetBackdrop({ 
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", 
         tile = true,
@@ -432,17 +435,32 @@ do
     party.party4.power:SetHeight(fontHeight)
     party.party4.power:SetJustifyH("RIGHT")
 
+    -- wave slider
+    frame.waveLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.waveLabel:SetText("Current Wave")
+    frame.waveLabel:SetPoint("TOPLEFT", party.party4.name, "BOTTOMLEFT", 0, -10)
+    frame.waveLabel:SetWidth(width - powerWidth)
+    frame.waveLabel:SetHeight(fontHeight)
+    frame.waveLabel:SetJustifyH("LEFT")
+
+    frame.waveValue = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.waveValue:SetText("1")
+    frame.waveValue:SetPoint("TOPRIGHT", party.party4.power, "BOTTOMRIGHT", 0, -10)
+    frame.waveValue:SetTextColor(1, 1, 1)
+    frame.waveValue:SetWidth(powerWidth)
+    frame.waveValue:SetHeight(fontHeight)
+    frame.waveValue:SetJustifyH("RIGHT")
+
     -- buttons
     frame.incrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.incrementCounter:SetPoint("TOPLEFT", party.party4.name, "BOTTOMLEFT", 0, -10)
+    frame.incrementCounter:SetPoint("TOPLEFT", frame.waveLabel, "BOTTOMLEFT", 0, -10)
     frame.incrementCounter:SetText("Increment Counter")
 	frame.incrementCounter:SetWidth(width)
     frame.incrementCounter:SetHeight(21)
     frame.incrementCounter:SetScript("OnClick", function() 
-        if counter < totalRounds then
-            counter = counter + 1
+        if wave < totalWaves then
+            setWave(wave + 1)
         end
-        print(tostring(counter))
     end)
 
     frame.decrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -451,23 +469,22 @@ do
 	frame.decrementCounter:SetWidth(width)
     frame.decrementCounter:SetHeight(21)
     frame.decrementCounter:SetScript("OnClick", function() 
-        if counter > 1 then
-            counter = counter - 1
+        if wave > 1 then
+            setWave(wave - 1)
         end
-        print(tostring(counter))
     end)
 
     frame.surpriseLoot = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     frame.surpriseLoot:SetPoint("TOPLEFT", frame.decrementCounter, "BOTTOMLEFT", 0, 0)
-    frame.surpriseLoot:SetText("End Round Early")
+    frame.surpriseLoot:SetText("End Set Early")
 	frame.surpriseLoot:SetWidth(width)
     frame.surpriseLoot:SetHeight(21)
     frame.surpriseLoot:SetScript("OnClick", function() 
-        if counter == 1 then
+        if wave == 1 then
             return
         end
-        counter = 1
-        SendChatMessage("Surprise LOOT SESSION!", "YELL")
+        setWave(1)
+        SendChatMessage("[BEF] Surprise LOOT SESSION!", "YELL")
     end)
 
     -- events
@@ -483,7 +500,7 @@ do
     frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
     frame:Hide()
-    -- frame:Show()
+    frame:Show()
 end
 
 -------------------
