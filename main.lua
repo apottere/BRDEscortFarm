@@ -8,6 +8,7 @@ local ready = false
 local powerThreshold = 45
 local totalRounds = 10
 local party = {}
+local eventHandlers = {}
 
 local function ui(unitId, frame)
     return party[unitId][frame]
@@ -132,76 +133,80 @@ local function onHide()
     end
 end
 
-local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
-    if not enabled then
-        return
-    end
-
-    if event == "QUEST_DETAIL" then
-        if not party.player.ready or not party.party1.ready or not party.party2.ready or not party.party3.ready or not party.party4.ready then
+eventHandlers.QUEST_DETAIL = function()
+    if GetQuestID() == questId then
+        if not party.player.ready or not party.party1.ready or not party.party2.ready or not party.party3.ready or not party.party4.ready or getGorshakHealth() ~= 100 then
             CloseQuest()
             print("[BEF] Not ready to start yet, check mana and Gor'Shak's health!")
             return
         end
 
-        if GetQuestID() == questId and getGorshakHealth() == 100 then
-            AcceptQuest()
-            currentRound = counter
-            local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
-            if counter == totalRounds then
-                msg = msg .. "  Loot after this!"
-                counter = 0
-            end
-
-            SendChatMessage(msg, "YELL")
-            counter = counter + 1
+        AcceptQuest()
+        currentRound = counter
+        local msg = "[BEF] Wave " .. tostring(counter) .. " Incoming!"
+        if counter == totalRounds then
+            msg = msg .. "  Loot after this!"
+            counter = 0
         end
-    end
 
-    if event == "QUEST_ACCEPTED" then
-        local _, _, _, _, _, _, _, id = GetQuestLogTitle(arg1)
-        if id == questId then
-            AbandonQuest(questId)
-            C_Timer.After(5.5, function()
-                SendChatMessage("[BEF] Start casing Flame Strike now!", "YELL")
-            end)
-        end
-    end
-
-    -- if event == "UNIT_SPELLCAST_SUCCEEDED" and currentRound ~= nil then
-    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        -- print(tostring(arg1) .. "|" .. tostring(arg2) .. "|" .. tostring(arg3) .. "|" .. tostring(arg4) .. "|" .. tostring(arg5))
-        -- if currentRound == nil then
-        --     return
-        -- end
-
-        -- local unitId = arg1
-        -- local spell = arg3
-        -- if spell == 122 or spell == 865 or spell == 6131 or spell == 10230 then
-        --     SendChatMessage("[BEF] " .. UnitName(unitId) .. " casted Frost Nova!", "YELL")
-        -- end
-    end
-
-    if event == "PLAYER_LEAVE_COMBAT" then
-        print("LEAVING COMBAT")
-        if currentRound == nil then
-            return
-        end
-        local currentRoundBackup = currentRound
-        currentRound = nil
-
-        local msg = "[BEF] Round " .. currentRoundBackup .. " Cleared!"
-        if currentRoundBackup == 10 then
-            msg = msg .. "  Loot now!"
-        end
         SendChatMessage(msg, "YELL")
+        counter = counter + 1
+    end
+end
+
+eventHandlers.QUEST_ACCEPTED = function(questIndex)
+    local _, _, _, _, _, _, _, id = GetQuestLogTitle(questIndex)
+    if id == questId then
+        AbandonQuest(questId)
+        C_Timer.After(5.5, function()
+            SendChatMessage("[BEF] Start casing Flame Strike now!", "YELL")
+        end)
+    end
+end
+
+eventHandlers.PLAYER_REGEN_ENABLED = function()
+    if currentRound == nil then
+        return
+    end
+    local currentRoundBackup = currentRound
+    currentRound = nil
+
+    local msg = "[BEF] Wave " .. currentRoundBackup .. " Cleared!"
+    if currentRoundBackup == 10 then
+        msg = msg .. "  Loot now!"
+    end
+    SendChatMessage(msg, "YELL")
+end
+
+eventHandlers.UNIT_POWER_UPDATE = function(unitId)
+    if party[unitId] then
+        updateUnitLine(unitId)
+    end
+end
+
+eventHandlers.COMBAT_LOG_EVENT_UNFILTERED = function()
+end
+
+eventHandlers.UNIT_SPELLCAST_SUCCEEDED = function(unitId, _, spellId)
+    -- if spell == 122 or spell == 865 or spell == 6131 or spell == 10230 then
+    --     SendChatMessage("[BEF] " .. UnitName(unitId) .. " casted Frost Nova!", "YELL")
+    -- end
+end
+
+eventHandlers.UNIT_TARGET = function(unitId)
+    if unitId ~= "player" then
+        return
+    end
+end
+
+local function onEvent(self, event, ...)
+    if not enabled then
+        return
     end
 
-    if event == "UNIT_POWER_UPDATE" then
-        local unitId = arg1
-        if party[unitId] then
-            updateUnitLine(unitId)
-        end
+    local handler = eventHandlers[event]
+    if handler then
+        handler(...)
     end
 end
 
@@ -381,8 +386,9 @@ do
     frame:RegisterEvent("QUEST_DETAIL")
     frame:RegisterEvent("QUEST_ACCEPTED")
     frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    frame:RegisterEvent("PLAYER_LEAVE_COMBAT")
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame:RegisterEvent("UNIT_POWER_UPDATE")
+    frame:RegisterEvent("UNIT_TARGET")
 
     frame:Hide()
     -- frame:Show()
