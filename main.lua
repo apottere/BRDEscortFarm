@@ -7,9 +7,10 @@ local currentRound = nil
 local ready = false
 local powerThreshold = 45
 local totalRounds = 10
+local party = {}
 
-local function ui(subframe)
-    return frame[subframe]
+local function ui(unitId, frame)
+    return party[unitId][frame]
 end
 
 local function percentage(current, max)
@@ -45,7 +46,7 @@ local function updateUnitLine(id)
     local name = UnitName(id)
     local power = unitPowerPercentage(id)
 
-    local nameFrame = ui(id .. "Name")
+    local nameFrame = ui(id, "name")
     if nameFrame ~= nil then
         if name ~= nil then
             nameFrame:SetText(name)
@@ -60,23 +61,22 @@ local function updateUnitLine(id)
         end
     end
 
-    local powerFrame = ui(id .. "Power")
+    local powerFrame = ui(id, "power")
     if powerFrame ~= nil then
         if power ~= nil then
             powerFrame:SetText(tostring(power))
 
             if power >= powerThreshold then
                 powerFrame:SetTextColor(0.2, 0.2, 1)
+                party[id].ready = true
             else
                 powerFrame:SetTextColor(1, 0, 0)
-                return false
+                party[id].ready = false
             end
         else
             powerFrame:SetText("???")
         end
     end
-
-    return true
 end
 
 local function targetIsGorshak()
@@ -98,28 +98,15 @@ local function getGorshakHealth()
 end
 
 local function runTick()
-    local maybeReady = true
-    local gorshakHealthFrame = ui("gorshakHealth")
+    local gorshakHealthFrame = ui("gorshak", "health")
     if gorshakHealthFrame then
         local gorshakHealth = getGorshakHealth()
         if gorshakHealth ~= nil then
             gorshakHealthFrame:SetText(gorshakHealth)
-
-            if gorshakHealth ~= 100 then
-                maybeReady = false
-            end
         else
             gorshakHealthFrame:SetText("???")
         end
     end
-
-    maybeReady = maybeReady and updateUnitLine("player")
-    maybeReady = maybeReady and updateUnitLine("party1")
-    maybeReady = maybeReady and updateUnitLine("party2")
-    maybeReady = maybeReady and updateUnitLine("party3")
-    maybeReady = maybeReady and updateUnitLine("party4")
-
-    ready = maybeReady
 end
 
 -------------------
@@ -145,11 +132,13 @@ local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
     end
 
     if event == "QUEST_DETAIL" then
-        if ready and GetQuestID() == questId and getGorshakHealth() == 100 then
-            print("Accepting")
+        if not party.player.ready or not party.party1.ready or not party.party2.ready or not party.party3.ready or not party.party4.ready then
+            CloseQuest()
+            return
+        end
+
+        if GetQuestID() == questId and getGorshakHealth() == 100 then
             AcceptQuest()
-        else
-            print("Not accepting")
         end
     end
 
@@ -167,21 +156,31 @@ local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
             SendChatMessage(msg, "YELL")
             counter = counter + 1
 
-            C_Timer.After(6, function()
+            C_Timer.After(5.5, function()
                 SendChatMessage("[BEF] Start casing Flame Strike now!", "YELL")
             end)
         end
     end
 
-    if event == "UNIT_SPELLCAST_SUCCEEDED" and currentRound ~= nil then
-        local unitId = arg1
-        local spell = arg3
-        if spell == 122 or spell == 865 or spell == 6131 or spell == 10230 then
-            SendChatMessage("[BEF] " .. UnitName(unitId) .. " casted Frost Nova!", "YELL")
-        end
+    -- if event == "UNIT_SPELLCAST_SUCCEEDED" and currentRound ~= nil then
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        -- print(tostring(arg1) .. "|" .. tostring(arg2) .. "|" .. tostring(arg3) .. "|" .. tostring(arg4) .. "|" .. tostring(arg5))
+        -- if currentRound == nil then
+        --     return
+        -- end
+
+        -- local unitId = arg1
+        -- local spell = arg3
+        -- if spell == 122 or spell == 865 or spell == 6131 or spell == 10230 then
+        --     SendChatMessage("[BEF] " .. UnitName(unitId) .. " casted Frost Nova!", "YELL")
+        -- end
     end
 
-    if event == "PLAYER_LEAVE_COMBAT" and currentRound ~= nil then
+    if event == "PLAYER_LEAVE_COMBAT" then
+        print("LEAVING COMBAT")
+        if currentRound == nil then
+            return
+        end
         local currentRoundBackup = currentRound
         currentRound = nil
 
@@ -190,6 +189,13 @@ local function onEvent(self, event, arg1, arg2, arg3, arg4, arg5)
             msg = msg .. "  Loot now!"
         end
         SendChatMessage(msg, "YELL")
+    end
+
+    if event == "UNIT_POWER_UPDATE" then
+        local unitId = arg1
+        if party[unitId] then
+            updateUnitLine(unitId)
+        end
     end
 end
 
@@ -204,13 +210,6 @@ do
     frame:SetScript("OnHide", onHide)
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-
-    -- events
-    frame:SetScript("OnEvent", onEvent)
-    frame:RegisterEvent("QUEST_DETAIL")
-    frame:RegisterEvent("QUEST_ACCEPTED")
-    frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-    frame:RegisterEvent("PLAYER_LEAVE_COMBAT")
 
     -- Create UI
     local width = 150
@@ -235,109 +234,120 @@ do
     frame.title:SetHeight(fontHeight)
 
     -- gor'shak
-    frame.gorshakName = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.gorshakName:SetText("Gor'Shak")
-    frame.gorshakName:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -5)
-    frame.gorshakName:SetTextColor(0.3, 1, 0.4)
-    frame.gorshakName:SetWidth(width - powerWidth)
-    frame.gorshakName:SetHeight(fontHeight)
-    frame.gorshakName:SetJustifyH("LEFT")
+    party.gorshak = {}
+    party.gorshak.name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.gorshak.name:SetText("Gor'Shak")
+    party.gorshak.name:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -5)
+    party.gorshak.name:SetTextColor(0.3, 1, 0.4)
+    party.gorshak.name:SetWidth(width - powerWidth)
+    party.gorshak.name:SetHeight(fontHeight)
+    party.gorshak.name:SetJustifyH("LEFT")
 
-    frame.gorshakHealth = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.gorshakHealth:SetText("???")
-    frame.gorshakHealth:SetPoint("TOPRIGHT", frame.title, "BOTTOMRIGHT", 0, -5)
-    frame.gorshakHealth:SetTextColor(0.4, 0.8, 0.5)
-    frame.gorshakHealth:SetWidth(powerWidth)
-    frame.gorshakHealth:SetHeight(fontHeight)
-    frame.gorshakHealth:SetJustifyH("RIGHT")
+    party.gorshak.health = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.gorshak.health:SetText("???")
+    party.gorshak.health:SetPoint("TOPRIGHT", frame.title, "BOTTOMRIGHT", 0, -5)
+    party.gorshak.health:SetTextColor(0.4, 0.8, 0.5)
+    party.gorshak.health:SetWidth(powerWidth)
+    party.gorshak.health:SetHeight(fontHeight)
+    party.gorshak.health:SetJustifyH("RIGHT")
 
     -- player
-    frame.playerName = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.playerName:SetText(UnitName("player"))
-    frame.playerName:SetPoint("TOPLEFT", frame.gorshakName, "BOTTOMLEFT")
-    frame.playerName:SetWidth(width - powerWidth)
-    frame.playerName:SetHeight(fontHeight)
-    frame.playerName:SetJustifyH("LEFT")
+    party.player = {}
+    party.player.ready = true
+    party.player.name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.player.name:SetText(UnitName("player"))
+    party.player.name:SetPoint("TOPLEFT", party.gorshak.name, "BOTTOMLEFT")
+    party.player.name:SetWidth(width - powerWidth)
+    party.player.name:SetHeight(fontHeight)
+    party.player.name:SetJustifyH("LEFT")
 
-    frame.playerPower = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.playerPower:SetText("???")
-    frame.playerPower:SetPoint("TOPRIGHT", frame.gorshakHealth, "BOTTOMRIGHT")
-    frame.playerPower:SetTextColor(0.2, 0.2, 1)
-    frame.playerPower:SetWidth(powerWidth)
-    frame.playerPower:SetHeight(fontHeight)
-    frame.playerPower:SetJustifyH("RIGHT")
+    party.player.power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.player.power:SetText("???")
+    party.player.power:SetPoint("TOPRIGHT", party.gorshak.health, "BOTTOMRIGHT")
+    party.player.power:SetTextColor(0.2, 0.2, 1)
+    party.player.power:SetWidth(powerWidth)
+    party.player.power:SetHeight(fontHeight)
+    party.player.power:SetJustifyH("RIGHT")
 
     -- party 1
-    frame.party1Name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.party1Name:SetText("???")
-    frame.party1Name:SetPoint("TOPLEFT", frame.playerName, "BOTTOMLEFT")
-    frame.party1Name:SetTextColor(1, 1, 1)
-    frame.party1Name:SetWidth(width - powerWidth)
-    frame.party1Name:SetHeight(fontHeight)
-    frame.party1Name:SetJustifyH("LEFT")
+    party.party1 = {}
+    party.party1.ready = true
+    party.party1.name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.party1.name:SetText("???")
+    party.party1.name:SetPoint("TOPLEFT", party.player.name, "BOTTOMLEFT")
+    party.party1.name:SetTextColor(1, 1, 1)
+    party.party1.name:SetWidth(width - powerWidth)
+    party.party1.name:SetHeight(fontHeight)
+    party.party1.name:SetJustifyH("LEFT")
 
-    frame.party1Power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.party1Power:SetText("???")
-    frame.party1Power:SetPoint("TOPRIGHT", frame.playerPower, "BOTTOMRIGHT")
-    frame.party1Power:SetTextColor(0.2, 0.2, 1)
-    frame.party1Power:SetWidth(powerWidth)
-    frame.party1Power:SetHeight(fontHeight)
-    frame.party1Power:SetJustifyH("RIGHT")
+    party.party1.power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.party1.power:SetText("???")
+    party.party1.power:SetPoint("TOPRIGHT", party.player.power, "BOTTOMRIGHT")
+    party.party1.power:SetTextColor(0.2, 0.2, 1)
+    party.party1.power:SetWidth(powerWidth)
+    party.party1.power:SetHeight(fontHeight)
+    party.party1.power:SetJustifyH("RIGHT")
 
     -- party 2
-    frame.party2Name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.party2Name:SetText("???")
-    frame.party2Name:SetPoint("TOPLEFT", frame.party1Name, "BOTTOMLEFT")
-    frame.party2Name:SetTextColor(1, 1, 1)
-    frame.party2Name:SetWidth(width - powerWidth)
-    frame.party2Name:SetHeight(fontHeight)
-    frame.party2Name:SetJustifyH("LEFT")
+    party.party2 = {}
+    party.party2.ready = true
+    party.party2.name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.party2.name:SetText("???")
+    party.party2.name:SetPoint("TOPLEFT", party.party1.name, "BOTTOMLEFT")
+    party.party2.name:SetTextColor(1, 1, 1)
+    party.party2.name:SetWidth(width - powerWidth)
+    party.party2.name:SetHeight(fontHeight)
+    party.party2.name:SetJustifyH("LEFT")
 
-    frame.party2Power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.party2Power:SetText("???")
-    frame.party2Power:SetPoint("TOPRIGHT", frame.party1Power, "BOTTOMRIGHT")
-    frame.party2Power:SetTextColor(0.2, 0.2, 1)
-    frame.party2Power:SetWidth(powerWidth)
-    frame.party2Power:SetHeight(fontHeight)
-    frame.party2Power:SetJustifyH("RIGHT")
+    party.party2.power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.party2.power:SetText("???")
+    party.party2.power:SetPoint("TOPRIGHT", party.party1.power, "BOTTOMRIGHT")
+    party.party2.power:SetTextColor(0.2, 0.2, 1)
+    party.party2.power:SetWidth(powerWidth)
+    party.party2.power:SetHeight(fontHeight)
+    party.party2.power:SetJustifyH("RIGHT")
 
     -- party 3
-    frame.party3Name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.party3Name:SetText("???")
-    frame.party3Name:SetPoint("TOPLEFT", frame.party2Name, "BOTTOMLEFT")
-    frame.party3Name:SetTextColor(1, 1, 1)
-    frame.party3Name:SetWidth(width - powerWidth)
-    frame.party3Name:SetHeight(fontHeight)
-    frame.party3Name:SetJustifyH("LEFT")
+    party.party3 = {}
+    party.party3.ready = true
+    party.party3.name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.party3.name:SetText("???")
+    party.party3.name:SetPoint("TOPLEFT", party.party2.name, "BOTTOMLEFT")
+    party.party3.name:SetTextColor(1, 1, 1)
+    party.party3.name:SetWidth(width - powerWidth)
+    party.party3.name:SetHeight(fontHeight)
+    party.party3.name:SetJustifyH("LEFT")
 
-    frame.party3Power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.party3Power:SetText("???")
-    frame.party3Power:SetPoint("TOPRIGHT", frame.party2Power, "BOTTOMRIGHT")
-    frame.party3Power:SetTextColor(0.2, 0.2, 1)
-    frame.party3Power:SetWidth(powerWidth)
-    frame.party3Power:SetHeight(fontHeight)
-    frame.party3Power:SetJustifyH("RIGHT")
+    party.party3.power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.party3.power:SetText("???")
+    party.party3.power:SetPoint("TOPRIGHT", party.party2.power, "BOTTOMRIGHT")
+    party.party3.power:SetTextColor(0.2, 0.2, 1)
+    party.party3.power:SetWidth(powerWidth)
+    party.party3.power:SetHeight(fontHeight)
+    party.party3.power:SetJustifyH("RIGHT")
 
     -- party 4
-    frame.party4Name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.party4Name:SetText("???")
-    frame.party4Name:SetPoint("TOPLEFT", frame.party3Name, "BOTTOMLEFT")
-    frame.party4Name:SetTextColor(1, 1, 1)
-    frame.party4Name:SetWidth(width - powerWidth)
-    frame.party4Name:SetHeight(fontHeight)
-    frame.party4Name:SetJustifyH("LEFT")
+    party.party4 = {}
+    party.party4.ready = true
+    party.party4.name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.party4.name:SetText("???")
+    party.party4.name:SetPoint("TOPLEFT", party.party3.name, "BOTTOMLEFT")
+    party.party4.name:SetTextColor(1, 1, 1)
+    party.party4.name:SetWidth(width - powerWidth)
+    party.party4.name:SetHeight(fontHeight)
+    party.party4.name:SetJustifyH("LEFT")
 
-    frame.party4Power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.party4Power:SetText("???")
-    frame.party4Power:SetPoint("TOPRIGHT", frame.party3Power, "BOTTOMRIGHT")
-    frame.party4Power:SetTextColor(0.2, 0.2, 1)
-    frame.party4Power:SetWidth(powerWidth)
-    frame.party4Power:SetHeight(fontHeight)
-    frame.party4Power:SetJustifyH("RIGHT")
+    party.party4.power = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    party.party4.power:SetText("???")
+    party.party4.power:SetPoint("TOPRIGHT", party.party3.power, "BOTTOMRIGHT")
+    party.party4.power:SetTextColor(0.2, 0.2, 1)
+    party.party4.power:SetWidth(powerWidth)
+    party.party4.power:SetHeight(fontHeight)
+    party.party4.power:SetJustifyH("RIGHT")
 
     -- buttons
     frame.incrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.incrementCounter:SetPoint("TOPLEFT", frame.party4Name, "BOTTOMLEFT", 0, -10)
+    frame.incrementCounter:SetPoint("TOPLEFT", party.party4.name, "BOTTOMLEFT", 0, -10)
     frame.incrementCounter:SetText("Increment Counter")
 	frame.incrementCounter:SetWidth(width)
     frame.incrementCounter:SetHeight(21)
@@ -359,6 +369,14 @@ do
         end
         print(tostring(counter))
     end)
+
+    -- events
+    frame:SetScript("OnEvent", onEvent)
+    frame:RegisterEvent("QUEST_DETAIL")
+    frame:RegisterEvent("QUEST_ACCEPTED")
+    frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    frame:RegisterEvent("PLAYER_LEAVE_COMBAT")
+    frame:RegisterEvent("UNIT_POWER_UPDATE")
 
     frame:Hide()
     -- frame:Show()
