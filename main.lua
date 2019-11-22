@@ -13,6 +13,7 @@ local party = {}
 local eventHandlers = {}
 local frostNovaNames = {}
 local isDuringWave = false
+local broadcastNova = true
 
 local function addFrostNovaRank(rank, spellId)
     local spellName = GetSpellInfo(spellId)
@@ -29,6 +30,7 @@ addFrostNovaRank(4, 10230)
 local function setWave(newWave)
     wave = newWave
     frame.waveValue:SetText(tostring(newWave))
+    frame.waveSlider:SetValue(newWave)
 end
 
 local function ui(unitId, frame)
@@ -114,7 +116,7 @@ end
 local function targetIsGorshak()
     local guid = UnitGUID("playertarget")
     if guid == nil then
-        return;
+        return
     end
 
     local id = guid:sub(-15, -12)
@@ -149,12 +151,25 @@ local function updateGorshakHealth()
     gorshakHealthFrame:SetTextColor(1, 1, 1)
 end
 
+local function updatePartyNames()
+    updateUnitName("player")
+    updateUnitName("party1")
+    updateUnitName("party2")
+    updateUnitName("party3")
+    updateUnitName("party4")
+end
+
+local function updatePartyPower()
+    updateUnitPower("player")
+    updateUnitPower("party1")
+    updateUnitPower("party2")
+    updateUnitPower("party3")
+    updateUnitPower("party4")
+end
+
 local function updatePartyLines()
-    updateUnitLine("player")
-    updateUnitLine("party1")
-    updateUnitLine("party2")
-    updateUnitLine("party3")
-    updateUnitLine("party4")
+    updatePartyNames()
+    updatePartyPower()
 end
 
 -------------------
@@ -225,9 +240,13 @@ eventHandlers.UNIT_POWER_FREQUENT = function(unitId)
 end
 
 eventHandlers.COMBAT_LOG_EVENT_UNFILTERED = function(unitId, _, spellId)
-    if not isDuringWave then
+    if not broadcastNova then
         return
     end
+
+    -- if not isDuringWave then
+    --     return
+    -- end
 
     local _, eventType, _, source, _, _, _, _, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
     if eventType ~= "SPELL_CAST_SUCCESS" then
@@ -304,13 +323,13 @@ do
     -- Create UI
     local width = 150
     frame:SetWidth(width)
-    frame:SetHeight(300)
+    frame:SetHeight(290)
     frame:SetBackdrop({ 
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", 
         tile = true,
         tileSize = 32,
         insets = { left = -5, right = -5, top = -5, bottom = -5 }
-    });
+    })
 
     local fontHeight = 18
     local powerWidth = 30
@@ -327,7 +346,7 @@ do
     party.gorshak = {}
     party.gorshak.name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     party.gorshak.name:SetText("Gor'Shak")
-    party.gorshak.name:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -5)
+    party.gorshak.name:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -10)
     party.gorshak.name:SetTextColor(0.3, 1, 0.4)
     party.gorshak.name:SetWidth(width - powerWidth)
     party.gorshak.name:SetHeight(fontHeight)
@@ -444,38 +463,84 @@ do
     frame.waveLabel:SetJustifyH("LEFT")
 
     frame.waveValue = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.waveValue:SetText("1")
+    frame.waveValue:SetText(tostring(wave))
     frame.waveValue:SetPoint("TOPRIGHT", party.party4.power, "BOTTOMRIGHT", 0, -10)
-    frame.waveValue:SetTextColor(1, 1, 1)
+    frame.waveValue:SetTextColor(1, 0.6, 0)
     frame.waveValue:SetWidth(powerWidth)
     frame.waveValue:SetHeight(fontHeight)
     frame.waveValue:SetJustifyH("RIGHT")
 
-    -- buttons
-    frame.incrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.incrementCounter:SetPoint("TOPLEFT", frame.waveLabel, "BOTTOMLEFT", 0, -10)
-    frame.incrementCounter:SetText("Increment Counter")
-	frame.incrementCounter:SetWidth(width)
-    frame.incrementCounter:SetHeight(21)
-    frame.incrementCounter:SetScript("OnClick", function() 
-        if wave < totalWaves then
-            setWave(wave + 1)
+    frame.waveSlider = CreateFrame("Slider", "BEF_WaveSlider", frame, "OptionsSliderTemplate")
+    frame.waveSlider:SetMinMaxValues(1, 10)
+    frame.waveSlider:SetObeyStepOnDrag(true)
+    frame.waveSlider:SetValueStep(1)
+    frame.waveSlider:SetStepsPerPage(1)
+    frame.waveSlider:SetValue(wave)
+    frame.waveSlider:SetPoint("TOPLEFT", frame.waveLabel, "BOTTOMLEFT", 5, 0)
+    frame.waveSlider:SetWidth(width - 10)
+    BEF_WaveSliderLow:SetText("1")
+    BEF_WaveSliderHigh:SetText("10")
+    frame.waveSlider:HookScript("OnValueChanged", function(self, value)
+        if value ~= wave then
+            setWave(value)
         end
     end)
 
-    frame.decrementCounter = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.decrementCounter:SetPoint("TOPLEFT", frame.incrementCounter, "BOTTOMLEFT", 0, 0)
-    frame.decrementCounter:SetText("Decrement Counter")
-	frame.decrementCounter:SetWidth(width)
-    frame.decrementCounter:SetHeight(21)
-    frame.decrementCounter:SetScript("OnClick", function() 
-        if wave > 1 then
-            setWave(wave - 1)
+    -- minimum mana slider
+    frame.manaLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.manaLabel:SetText("Minimum Mana")
+    frame.manaLabel:SetPoint("TOPLEFT", frame.waveSlider, "BOTTOMLEFT", -5, -10)
+    frame.manaLabel:SetWidth(width - powerWidth)
+    frame.manaLabel:SetHeight(fontHeight)
+    frame.manaLabel:SetJustifyH("LEFT")
+
+    frame.manaValue = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.manaValue:SetText(tostring(powerThreshold))
+    frame.manaValue:SetPoint("TOPRIGHT", frame.waveSlider, "BOTTOMRIGHT", -5, -10)
+    frame.manaValue:SetTextColor(1, 0.6, 0)
+    frame.manaValue:SetWidth(powerWidth)
+    frame.manaValue:SetHeight(fontHeight)
+    frame.manaValue:SetJustifyH("RIGHT")
+
+    frame.manaSlider = CreateFrame("Slider", "BEF_ManaSlider", frame, "OptionsSliderTemplate")
+    frame.manaSlider:SetMinMaxValues(5, 100)
+    frame.manaSlider:SetObeyStepOnDrag(true)
+    frame.manaSlider:SetValueStep(5)
+    frame.manaSlider:SetStepsPerPage(1)
+    frame.manaSlider:SetValue(powerThreshold)
+    frame.manaSlider:SetPoint("TOPLEFT", frame.manaLabel, "BOTTOMLEFT", 5, 0)
+    frame.manaSlider:SetWidth(width - 10)
+    BEF_ManaSliderLow:SetText("5")
+    BEF_ManaSliderHigh:SetText("100")
+    frame.manaSlider:HookScript("OnValueChanged", function(self, value)
+        if value ~= powerThreshold then
+            powerThreshold = value
+            frame.manaValue:SetText(tostring(value))
+            updatePartyPower()
         end
     end)
 
+    -- broadcast nova button
+    frame.broadcastNovaLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.broadcastNovaLabel:SetText("Broadcast Nova")
+    frame.broadcastNovaLabel:SetPoint("TOPLEFT", frame.manaSlider, "BOTTOMLEFT", -5, -12)
+    frame.broadcastNovaLabel:SetWidth(width - powerWidth)
+    frame.broadcastNovaLabel:SetHeight(fontHeight)
+    frame.broadcastNovaLabel:SetJustifyH("LEFT")
+
+    frame.broadcastNovaButton = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    frame.broadcastNovaButton:SetPoint("TOPRIGHT", frame.manaSlider, "BOTTOMRIGHT", 5, -12)
+    frame.broadcastNovaButton:SetChecked(broadcastNova)
+    frame.broadcastNovaButton:SetButtonState("NORMAL")
+    frame.broadcastNovaButton:SetWidth(22)
+    frame.broadcastNovaButton:SetHeight(22)
+    frame.broadcastNovaButton:SetScript("OnClick", function()
+        broadcastNova = not broadcastNova
+    end)
+
+    -- end set button
     frame.surpriseLoot = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.surpriseLoot:SetPoint("TOPLEFT", frame.decrementCounter, "BOTTOMLEFT", 0, 0)
+    frame.surpriseLoot:SetPoint("TOPLEFT", frame.broadcastNovaLabel, "BOTTOMLEFT", 0, -10)
     frame.surpriseLoot:SetText("End Set Early")
 	frame.surpriseLoot:SetWidth(width)
     frame.surpriseLoot:SetHeight(21)
