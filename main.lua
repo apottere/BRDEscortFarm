@@ -269,7 +269,7 @@ eventHandlers.UNIT_TARGET = function(unitId)
 end
 
 eventHandlers.UNIT_HEALTH_FREQUENT = function(unitId)
-    if unitId ~= target then
+    if unitId ~= "target" then
         return
     end
 
