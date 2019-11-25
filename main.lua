@@ -1,6 +1,7 @@
 local _, namespace = ...
 
 local questId = 3982
+local questName = "What Is Going On?"
 local npcId = 9020
 local frame = nil
 local wave = 1
@@ -11,9 +12,11 @@ local gorshakHealthThreshold = 90
 local totalWaves = 10
 local party = {}
 local eventHandlers = {}
+local alwaysEventHandlers = {}
 local frostNovaNames = {}
 local isDuringWave = false
 local broadcastNova = true
+local firstTimePrompt = true
 
 local function addFrostNovaRank(rank, spellId)
     local spellName = GetSpellInfo(spellId)
@@ -26,6 +29,10 @@ addFrostNovaRank(1, 122)
 addFrostNovaRank(2, 865)
 addFrostNovaRank(3, 6131)
 addFrostNovaRank(4, 10230)
+
+local function unitPowerMatters(classId)
+    return classId == 5 or classId == 7 or classId == 8 or classId == 11
+end
 
 local function setWave(newWave)
     wave = newWave
@@ -52,14 +59,14 @@ local function unitPowerPercentage(unit)
     return percentage(currentPower, maxPower)
 end
 
-local function getClassColor(class)
-    if class == 5 then
+local function getClassColor(classId)
+    if classId == 5 then
         return 1, 1, 1
     end
-    if class == 8 then
+    if classId == 8 then
         return 0.25, 0.78, 0.92
     end
-    if class == 9 then
+    if classId == 9 then
         return 0.53, 0.53, 0.93
     end
 
@@ -76,8 +83,9 @@ local function updateUnitName(unitId)
     if name ~= nil then
         nameFrame:SetText(name)
 
-        local _, _, class = UnitClass(unitId)
-        local r, g, b = getClassColor(class)
+        local _, _, classId = UnitClass(unitId)
+        party[unitId].classId = classId
+        local r, g, b = getClassColor(classId)
 
         nameFrame:SetTextColor(r, g, b)
     else
@@ -99,9 +107,12 @@ local function updateUnitPower(unitId)
         if power >= powerThreshold then
             powerFrame:SetTextColor(0.2, 0.2, 1)
             party[unitId].ready = true
-        else
+        elseif unitPowerMatters(party[unitId].classId) then
             powerFrame:SetTextColor(1, 0, 0)
             party[unitId].ready = false
+        else
+            powerFrame:SetTextColor(0.5, 0.5, 0.5)
+            party[unitId].ready = true
         end
     else
         powerFrame:SetText("---")
@@ -179,13 +190,13 @@ eventHandlers.QUEST_DETAIL = function()
     if GetQuestID() == questId then
         if isDuringWave then
             CloseQuest()
-            print("[BEF] It looks like a wave is already started, did you double click Gor'Shak?  If a wave isn't currently active and you think this is broken, reload your UI.")
+            print("[BEF] It looks like a wave is already started, did you double click Gor'shak?  If a wave isn't currently active and you think this is broken, reload your UI.")
             return
         end
 
         if getGorshakHealth() < gorshakHealthThreshold then
             CloseQuest()
-            print("[BEF] Not ready to start yet, check Gor'Shak's health!")
+            print("[BEF] Not ready to start yet, check Gor'shak's health!")
             return
         end
 
@@ -202,7 +213,9 @@ end
 eventHandlers.QUEST_ACCEPTED = function(questIndex)
     local _, _, _, _, _, _, _, id = GetQuestLogTitle(questIndex)
     if id == questId then
-        AbandonQuest(questId)
+        SelectQuestLogEntry(questIndex)
+        SetAbandonQuest()
+        AbandonQuest()
         isDuringWave = true
 
         local msg = "[BEF] Wave " .. tostring(wave) .. " Incoming!"
@@ -260,8 +273,20 @@ eventHandlers.COMBAT_LOG_EVENT_UNFILTERED = function(unitId, _, spellId)
     end
 end
 
-eventHandlers.UNIT_TARGET = function(unitId)
+alwaysEventHandlers.UNIT_TARGET = function(unitId)
     if unitId ~= "player" then
+        return
+    end
+
+    if firstTimePrompt then
+        firstTimePrompt = false
+
+        if not enabled and targetIsGorshak() then
+            print("[BEF] It looks like you're doing an escort farm, but you haven't opened the UI yet!  Type /bef show to get started.")
+        end
+    end
+
+    if not enabled then
         return
     end
 
@@ -284,11 +309,18 @@ eventHandlers.GROUP_JOINED = function()
     updatePartyLines()
 end
 
+alwaysEventHandlers.QUEST_ACCEPT_CONFIRM = function(player, name)
+    if name == questName then
+        StaticPopup_Hide("QUEST_ACCEPT")
+    end
+end
+
 -------------------
 -- ui
 -------------------
 local function onShow()
     enabled = true
+    firstTimePrompt = false
     updatePartyLines()
     updateGorshakHealth()
 end
@@ -298,11 +330,18 @@ local function onHide()
 end
 
 local function onEvent(self, event, ...)
+    local handler
+    handler = alwaysEventHandlers[event]
+    if handler then
+        handler(...)
+        return
+    end
+
     if not enabled then
         return
     end
 
-    local handler = eventHandlers[event]
+    handler = eventHandlers[event]
     if handler then
         handler(...)
     end
@@ -345,7 +384,7 @@ do
     -- gor'shak
     party.gorshak = {}
     party.gorshak.name = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    party.gorshak.name:SetText("Gor'Shak")
+    party.gorshak.name:SetText("Gor'shak")
     party.gorshak.name:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -10)
     party.gorshak.name:SetTextColor(0.3, 1, 0.4)
     party.gorshak.name:SetWidth(width - powerWidth)
@@ -563,6 +602,7 @@ do
     frame:RegisterEvent("GROUP_ROSTER_UPDATE")
     frame:RegisterEvent("GROUP_JOINED")
     frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    frame:RegisterEvent("QUEST_ACCEPT_CONFIRM")
 
     frame:Hide()
     -- frame:Show()
