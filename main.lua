@@ -269,7 +269,7 @@ eventHandlers.COMBAT_LOG_EVENT_UNFILTERED = function(unitId, _, spellId)
     local _, _, _, _, _, name = GetPlayerInfoByGUID(source)
 
     if spellName == frostNovaNames[1] or spellName == frostNovaNames[2] or spellName == frostNovaNames[3] or spellName == frostNovaNames[4]  then
-        SendChatMessage("[BEF] " .. name .. " casted Frost Nova!", "YELL")
+        SendChatMessage("[BEF] " .. name .. " casts Frost Nova!", "YELL")
     end
 end
 
