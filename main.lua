@@ -97,6 +97,7 @@ end
 local function updateUnitPower(unitId)
     local powerFrame = ui(unitId, "power")
     if powerFrame == nil then
+        party[unitId].ready = true
         return
     end
 
