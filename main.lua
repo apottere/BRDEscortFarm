@@ -6,7 +6,6 @@ local npcId = 9020
 local frame = nil
 local wave = 1
 local enabled = false
-local ready = false
 local powerThreshold = 35
 local gorshakHealthThreshold = 90
 local totalWaves = 10
@@ -40,10 +39,6 @@ local function setWave(newWave)
     frame.waveSlider:SetValue(newWave)
 end
 
-local function ui(unitId, frame)
-    return party[unitId][frame]
-end
-
 local function percentage(current, max)
     if current == nil or max == nil or max == 0 then
         return nil
@@ -74,11 +69,7 @@ local function getClassColor(classId)
 end
 
 local function updateUnitName(unitId)
-    local nameFrame = ui(unitId, "name")
-    if nameFrame == nil then
-        return
-    end
-
+    local nameFrame = party[unitId]["name"]
     local name = UnitName(unitId)
     if name ~= nil then
         nameFrame:SetText(name)
@@ -90,33 +81,30 @@ local function updateUnitName(unitId)
         nameFrame:SetTextColor(r, g, b)
     else
         nameFrame:SetText("------")
-        nameFrame:SetTextColor(1, 1, 1)
+        nameFrame:SetTextColor(0.5, 0.5, 0.5)
     end
 end
 
 local function updateUnitPower(unitId)
-    local powerFrame = ui(unitId, "power")
-    if powerFrame == nil then
-        party[unitId].ready = true
-        return
-    end
-
+    local powerFrame = party[unitId]["power"]
     local power = unitPowerPercentage(unitId)
     if power ~= nil then
         powerFrame:SetText(tostring(power))
 
-        if power >= powerThreshold then
-            powerFrame:SetTextColor(0.2, 0.2, 1)
+        if not unitPowerMatters(party[unitId].classId) then
             party[unitId].ready = true
-        elseif unitPowerMatters(party[unitId].classId) then
-            powerFrame:SetTextColor(1, 0, 0)
-            party[unitId].ready = false
-        else
             powerFrame:SetTextColor(0.5, 0.5, 0.5)
+        elseif power >= powerThreshold then
             party[unitId].ready = true
+            powerFrame:SetTextColor(0.2, 0.2, 1)
+        else
+            party[unitId].ready = false
+            powerFrame:SetTextColor(1, 0, 0)
         end
     else
+        party[unitId].ready = true
         powerFrame:SetText("---")
+        powerFrame:SetTextColor(0.5, 0.5, 0.5)
     end
 end
 
@@ -140,10 +128,7 @@ local function getGorshakHealth()
 end
 
 local function updateGorshakHealth()
-    local gorshakHealthFrame = ui("gorshak", "health")
-    if not gorshakHealthFrame then
-        return
-    end
+    local gorshakHealthFrame = party["gorshak"]["health"]
 
     if targetIsGorshak() then
         local gorshakHealth = getGorshakHealth()
@@ -184,30 +169,40 @@ local function updatePartyLines()
     updatePartyPower()
 end
 
+local function allPlayersReady()
+    return party.player.ready and party.party1.ready and party.party2.ready and party.party3.ready and party.party4.ready
+end
+
+local function checkReady()
+    if isDuringWave then
+        print("[BEF] It looks like a wave is already started, did you double click Gor'shak?  If a wave isn't currently active and you think this is broken, reload your UI.")
+        return false
+    end
+
+    local gorshakHealth = getGorshakHealth()
+    if gorshakHealth == nil or gorshakHealth < gorshakHealthThreshold then
+        print("[BEF] Not ready to start yet, check Gor'shak's health!")
+        return false
+    end
+
+    if not allPlayersReady() then
+        print("[BEF] Not ready to start yet, check party's mana!")
+        return false
+    end
+
+    return true
+end
+
 -------------------
 -- events
 -------------------
 eventHandlers.QUEST_DETAIL = function()
     if GetQuestID() == questId then
-        if isDuringWave then
+        if checkReady() then
+            AcceptQuest()
+        else
             CloseQuest()
-            print("[BEF] It looks like a wave is already started, did you double click Gor'shak?  If a wave isn't currently active and you think this is broken, reload your UI.")
-            return
         end
-
-        if getGorshakHealth() < gorshakHealthThreshold then
-            CloseQuest()
-            print("[BEF] Not ready to start yet, check Gor'shak's health!")
-            return
-        end
-
-        if not party.player.ready or not party.party1.ready or not party.party2.ready or not party.party3.ready or not party.party4.ready then
-            CloseQuest()
-            print("[BEF] Not ready to start yet, check party's mana!")
-            return
-        end
-
-        AcceptQuest()
     end
 end
 
@@ -621,6 +616,13 @@ SlashCmdList.BEF = function(msg, editbox)
 
     if msg == "hide" then
         frame:Hide()
+        return
+    end
+
+    if msg == "ready" then
+        if checkReady() then
+            print("[BEF] Ready!")
+        end
         return
     end
 
